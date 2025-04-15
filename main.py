@@ -29,6 +29,9 @@ class FullScreenApp:
         # Start camera feed
         self.capture_camera()
 
+        # Capture the initial frame for area[0]
+        self.capture_current_frame()
+
     def create_areas(self):
         # Create a list to hold the area structures
         areas = []
@@ -80,12 +83,15 @@ class FullScreenApp:
             img_tk = ImageTk.PhotoImage(image=img)
 
             # Display the captured frame in the first area
-            if self.image_holder is None:
-                self.image_holder = self.canvas.create_image(area['x0'], area['y0'], anchor=tk.NW, image=img_tk)
-            else:
-                self.canvas.itemconfig(self.image_holder, image=img_tk)
+            self.display_image_in_area(img_tk, area)
 
-            self.canvas.image = img_tk  # Keep a reference to avoid garbage collection
+    def display_image_in_area(self, img_tk, area):
+        if self.image_holder is None:
+            self.image_holder = self.canvas.create_image(area['x0'], area['y0'], anchor=tk.NW, image=img_tk)
+        else:
+            self.canvas.itemconfig(self.image_holder, image=img_tk)
+
+        self.canvas.image = img_tk  # Keep a reference to avoid garbage collection
 
     def exit_fullscreen(self, event=None):
         self.master.attributes('-fullscreen', False)
