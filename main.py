@@ -71,24 +71,25 @@ class FullScreenApp:
 
     def key_event(self, event):
         print(f"Key pressed: {event.keysym}")
-        if event.keysym == '1':
-            self.capture_current_frame()  # Capture frame when '1' is pressed
+        if event.keysym in ['1', '2', '3', '4']:
+            index = int(event.keysym) - 1  # Convert key to index (0-3)
+            self.capture_current_frame(index)  # Capture frame when '1', '2', '3', or '4' is pressed
 
-    def capture_current_frame(self):
+    def capture_current_frame(self, index):
         ret, frame = self.cap.read()
         if ret:
             # Convert frame to RGB
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            # Resize frame to fit the first area
-            area = self.areas[0]
+            # Resize frame to fit the corresponding area
+            area = self.areas[index]
             frame = cv2.resize(frame, (int(area['x1'] - area['x0']), int(area['y1'] - area['y0'])))
             # Convert to PIL Image
             img_captured = Image.fromarray(frame)
 
             # Save the captured frame in the array
-            self.img[0] = img_captured
+            self.img[index] = img_captured
 
-            # Draw the captured frame in the first rectangle
+            # Draw the captured frame in the corresponding rectangle
             self.img0.paste(img_captured, (int(area['x0']), int(area['y0'])))
 
             # Update the canvas image
@@ -112,3 +113,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = FullScreenApp(root)
     root.mainloop()
+
