@@ -20,29 +20,25 @@ class FullScreenApp:
         self.canvas = tk.Canvas(master, width=self.screen_width, height=self.screen_height)
         self.canvas.pack()
 
-        # Create squares
-        self.create_squares()
+        # Define areas for the right side of the window
+        self.areas = self.create_areas()
 
         # Initialize image holder
-        self.image_holder = None  # Initialize image_holder here
+        self.image_holder = None
 
         # Start camera feed
         self.capture_camera()
 
-
-    def create_squares(self):
-        # Large square (w0)
-        self.w0 = self.canvas.create_rectangle(0, 0, self.screen_width * 2 / 3, self.screen_height, fill="blue")
-
-        # Small squares (w)
-        self.w = []
+    def create_areas(self):
+        # Create a list to hold the area structures
+        areas = []
+        x0 = self.screen_width * 2 / 3
         for i in range(4):
-            x0 = self.screen_width * 2 / 3
             y0 = (i * self.screen_height / 4)
             x1 = self.screen_width
             y1 = ((i + 1) * self.screen_height / 4)
-            square = self.canvas.create_rectangle(x0, y0, x1, y1, fill="red")
-            self.w.append(square)
+            areas.append({'x0': x0, 'y0': y0, 'x1': x1, 'y1': y1})
+        return areas
 
     def capture_camera(self):
         # Capture from the default camera
@@ -54,19 +50,16 @@ class FullScreenApp:
         if ret:
             # Convert frame to RGB
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            # Resize frame to fit w0
+            # Resize frame to fit the left area
             frame = cv2.resize(frame, (int(self.screen_width * 2 / 3), self.screen_height))
             # Convert to PIL Image
             img = Image.fromarray(frame)
             img_tk = ImageTk.PhotoImage(image=img)
 
-            # Update the canvas with the new image
-            if self.image_holder is None:
-                self.image_holder = self.canvas.create_image(0, 0, anchor=tk.NW, image=img_tk)
-            else:
-                self.canvas.itemconfig(self.image_holder, image=img_tk)
-
+            # Display the camera feed on the left side
+            self.canvas.create_image(0, 0, anchor=tk.NW, image=img_tk)
             self.canvas.image = img_tk  # Keep a reference to avoid garbage collection
+
             self.master.after(10, self.update_camera_feed)
 
     def key_event(self, event):
@@ -79,15 +72,16 @@ class FullScreenApp:
         if ret:
             # Convert frame to RGB
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            # Resize frame to fit w0
-            frame = cv2.resize(frame, (int(self.screen_width * 2 / 3), self.screen_height))
+            # Resize frame to fit the first area
+            area = self.areas[0]
+            frame = cv2.resize(frame, (int(area['x1'] - area['x0']), int(area['y1'] - area['y0'])))
             # Convert to PIL Image
             img = Image.fromarray(frame)
             img_tk = ImageTk.PhotoImage(image=img)
 
-            # Display the captured frame in w0 area
+            # Display the captured frame in the first area
             if self.image_holder is None:
-                self.image_holder = self.canvas.create_image(0, 0, anchor=tk.NW, image=img_tk)
+                self.image_holder = self.canvas.create_image(area['x0'], area['y0'], anchor=tk.NW, image=img_tk)
             else:
                 self.canvas.itemconfig(self.image_holder, image=img_tk)
 
