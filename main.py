@@ -16,21 +16,23 @@ class FullScreenApp:
         self.screen_width = self.master.winfo_screenwidth()
         self.screen_height = self.master.winfo_screenheight()
 
-        # Create canvas
+        # Create a canvas
         self.canvas = tk.Canvas(master, width=self.screen_width, height=self.screen_height)
         self.canvas.pack()
+
+        # Create a single image that covers the whole window
+        self.img0 = Image.new("RGB", (self.screen_width, self.screen_height), (0, 0, 0))
+        self.img_tk = ImageTk.PhotoImage(image=self.img0)
+        self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
 
         # Define areas for the right side of the window
         self.areas = self.create_areas()
 
-        # Initialize image holder
-        self.image_holder = None
+        # Initialize image holder for captured frames
+        self.img = [None] * 4  # Array to hold 4 captured images
 
         # Start camera feed
         self.capture_camera()
-
-        # Capture the initial frame for area[0]
-        self.capture_current_frame()
 
     def create_areas(self):
         # Create a list to hold the area structures
@@ -56,12 +58,14 @@ class FullScreenApp:
             # Resize frame to fit the left area
             frame = cv2.resize(frame, (int(self.screen_width * 2 / 3), self.screen_height))
             # Convert to PIL Image
-            img = Image.fromarray(frame)
-            img_tk = ImageTk.PhotoImage(image=img)
+            img_feed = Image.fromarray(frame)
 
-            # Display the camera feed on the left side
-            self.canvas.create_image(0, 0, anchor=tk.NW, image=img_tk)
-            self.canvas.image = img_tk  # Keep a reference to avoid garbage collection
+            # Draw the camera feed on the left side of img0
+            self.img0.paste(img_feed, (0, 0))
+
+            # Update the canvas image
+            self.img_tk = ImageTk.PhotoImage(image=self.img0)
+            self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
 
             self.master.after(10, self.update_camera_feed)
 
@@ -79,19 +83,17 @@ class FullScreenApp:
             area = self.areas[0]
             frame = cv2.resize(frame, (int(area['x1'] - area['x0']), int(area['y1'] - area['y0'])))
             # Convert to PIL Image
-            img = Image.fromarray(frame)
-            img_tk = ImageTk.PhotoImage(image=img)
+            img_captured = Image.fromarray(frame)
 
-            # Display the captured frame in the first area
-            self.display_image_in_area(img_tk, area)
+            # Save the captured frame in the array
+            self.img[0] = img_captured
 
-    def display_image_in_area(self, img_tk, area):
-        if self.image_holder is None:
-            self.image_holder = self.canvas.create_image(area['x0'], area['y0'], anchor=tk.NW, image=img_tk)
-        else:
-            self.canvas.itemconfig(self.image_holder, image=img_tk)
+            # Draw the captured frame in the first rectangle
+            self.img0.paste(img_captured, (int(area['x0']), int(area['y0'])))
 
-        self.canvas.image = img_tk  # Keep a reference to avoid garbage collection
+            # Update the canvas image
+            self.img_tk = ImageTk.PhotoImage(image=self.img0)
+            self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
 
     def exit_fullscreen(self, event=None):
         self.master.attributes('-fullscreen', False)
