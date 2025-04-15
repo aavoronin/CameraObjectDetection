@@ -23,8 +23,12 @@ class FullScreenApp:
         # Create squares
         self.create_squares()
 
+        # Initialize image holder
+        self.image_holder = None  # Initialize image_holder here
+
         # Start camera feed
         self.capture_camera()
+
 
     def create_squares(self):
         # Large square (w0)
@@ -45,17 +49,6 @@ class FullScreenApp:
         self.cap = cv2.VideoCapture(0)
         self.update_camera_feed()
 
-    def update_camera_feed2(self):
-        ret, frame = self.cap.read()
-        if ret:
-            # Convert frame to RGB
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            # Resize frame to fit w0
-            frame = cv2.resize(frame, (int(self.screen_width * 2 / 3), self.screen_height))
-            # Convert to PhotoImage
-            img = tk.PhotoImage(image=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-            self.canvas.create_image(0, 0, anchor=tk.NW, image=img)
-            self.master.after(10, self.update_camera_feed)
     def update_camera_feed(self):
         ret, frame = self.cap.read()
         if ret:
@@ -68,12 +61,13 @@ class FullScreenApp:
             img_tk = ImageTk.PhotoImage(image=img)
 
             # Update the canvas with the new image
-            self.canvas.create_image(0, 0, anchor=tk.NW, image=img_tk)
-            self.canvas.image = img_tk  # Keep a reference to avoid garbage collection
+            if self.image_holder is None:
+                self.image_holder = self.canvas.create_image(0, 0, anchor=tk.NW, image=img_tk)
+            else:
+                self.canvas.itemconfig(self.image_holder, image=img_tk)
 
+            self.canvas.image = img_tk  # Keep a reference to avoid garbage collection
             self.master.after(10, self.update_camera_feed)
-    def exit_fullscreen(self, event=None):
-        self.master.attributes('-fullscreen', False)
 
     def key_event(self, event):
         print(f"Key pressed: {event.keysym}")
@@ -92,8 +86,15 @@ class FullScreenApp:
             img_tk = ImageTk.PhotoImage(image=img)
 
             # Display the captured frame in w0 area
-            self.canvas.create_image(0, 0, anchor=tk.NW, image=img_tk)
+            if self.image_holder is None:
+                self.image_holder = self.canvas.create_image(0, 0, anchor=tk.NW, image=img_tk)
+            else:
+                self.canvas.itemconfig(self.image_holder, image=img_tk)
+
             self.canvas.image = img_tk  # Keep a reference to avoid garbage collection
+
+    def exit_fullscreen(self, event=None):
+        self.master.attributes('-fullscreen', False)
 
     def mouse_event(self, event):
         print(f"Mouse clicked at: {event.x}, {event.y}")
