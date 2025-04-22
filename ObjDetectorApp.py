@@ -1,7 +1,8 @@
 import tkinter as tk
-
 import cv2
 from PIL import Image, ImageTk
+
+from ImageArea import ImageArea
 
 
 class ObjDetectorApp:
@@ -43,7 +44,7 @@ class ObjDetectorApp:
             y0 = (i * self.screen_height / 4)
             x1 = self.screen_width
             y1 = ((i + 1) * self.screen_height / 4)
-            areas.append({'x0': x0, 'y0': y0, 'x1': x1, 'y1': y1})
+            areas.append(ImageArea(x0, y0, x1, y1))
         return areas
 
     def capture_camera(self):
@@ -68,7 +69,7 @@ class ObjDetectorApp:
             self.img_tk = ImageTk.PhotoImage(image=self.img0)
             self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
 
-            self.master.after(10, self.update_camera_feed)
+            self.master.after(1, self.update_camera_feed)
 
     def key_event(self, event):
         print(f"Key pressed: {event.keysym}")
@@ -84,8 +85,8 @@ class ObjDetectorApp:
 
             # Get the dimensions of the area
             area = self.areas[index]
-            area_width = int(area['x1'] - area['x0'])
-            area_height = int(area['y1'] - area['y0'])
+            area_width = int(area.x1 - area.x0)
+            area_height = int(area.y1 - area.y0)
 
             # Calculate the aspect ratio of the captured frame
             frame_height, frame_width, _ = frame.shape
@@ -93,11 +94,9 @@ class ObjDetectorApp:
 
             # Calculate new dimensions while maintaining aspect ratio
             if area_width / area_height > frame_aspect_ratio:
-                # Area is wider than the frame aspect ratio
                 new_width = area_height * frame_aspect_ratio
                 new_height = area_height
             else:
-                # Area is taller than the frame aspect ratio
                 new_width = area_width
                 new_height = area_width / frame_aspect_ratio
 
@@ -111,8 +110,8 @@ class ObjDetectorApp:
             self.img[index] = img_captured
 
             # Calculate position to center the image in the area
-            x_offset = int(area['x0'] + (area_width - new_width) / 2)
-            y_offset = int(area['y0'] + (area_height - new_height) / 2)
+            x_offset = int(area.x0 + (area_width - new_width) / 2)
+            y_offset = int(area.y0 + (area_height - new_height) / 2)
 
             # Draw the captured frame in the corresponding rectangle
             self.img0.paste(img_captured, (x_offset, y_offset))
@@ -133,3 +132,5 @@ class ObjDetectorApp:
 
     def __del__(self):
         self.cap.release()  # Release the camera when the app is closed
+
+
