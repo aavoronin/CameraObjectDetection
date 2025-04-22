@@ -27,7 +27,8 @@ class ObjDetectorApp:
         self.img_tk = ImageTk.PhotoImage(image=self.img0)
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
 
-        # Define areas for the right side of the window
+        # Define areas for camera feed (left 2/3) and capture sections (right 1/3)
+        self.left_area = ImageArea(0, 0, self.screen_width * 2 / 3, self.screen_height)
         self.areas = self.create_areas()
 
         # Initialize image holder for captured frames
@@ -58,12 +59,13 @@ class ObjDetectorApp:
             # Convert frame to RGB
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             # Resize frame to fit the left area
-            frame = cv2.resize(frame, (int(self.screen_width * 2 / 3), self.screen_height))
+            frame = cv2.resize(frame, (int(self.left_area.x1 - self.left_area.x0),
+                                     int(self.left_area.y1 - self.left_area.y0)))
             # Convert to PIL Image
             img_feed = Image.fromarray(frame)
 
             # Draw the camera feed on the left side of img0
-            self.img0.paste(img_feed, (0, 0))
+            self.img0.paste(img_feed, (int(self.left_area.x0), int(self.left_area.y0)))
 
             # Update the canvas image
             self.img_tk = ImageTk.PhotoImage(image=self.img0)
@@ -132,5 +134,3 @@ class ObjDetectorApp:
 
     def __del__(self):
         self.cap.release()  # Release the camera when the app is closed
-
-
