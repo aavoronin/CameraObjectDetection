@@ -31,8 +31,9 @@ class ObjDetectorApp:
         self.left_area = ImageArea(0, 0, self.screen_width * 2 / 3, self.screen_height)
         self.areas = self.create_areas()
 
-        # Initialize image holder for captured frames
-        self.img = [None] * 4  # Array to hold 4 captured images
+        ## Initialize image holder for captured frames
+        #self.img = [None] * 4  # Array to hold 4 captured images
+        self.max_areas = 4
 
         # Start camera feed
         self.capture_camera()
@@ -67,6 +68,8 @@ class ObjDetectorApp:
             # Draw the camera feed on the left side of img0
             self.img0.paste(img_feed, (int(self.left_area.x0), int(self.left_area.y0)))
 
+            self.update_area_images()
+
             # Update the canvas image
             self.img_tk = ImageTk.PhotoImage(image=self.img0)
             self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
@@ -80,47 +83,55 @@ class ObjDetectorApp:
             self.capture_current_frame(index)  # Capture frame when '1', '2', '3', or '4' is pressed
 
     def capture_current_frame(self, index):
-        ret, frame = self.cap.read()
+        ret, self.frame = self.cap.read()
         if ret:
             # Convert frame to RGB
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            self.frame = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
 
             # Get the dimensions of the area
             area = self.areas[index]
-            area_width = int(area.x1 - area.x0)
-            area_height = int(area.y1 - area.y0)
 
             # Calculate the aspect ratio of the captured frame
-            frame_height, frame_width, _ = frame.shape
-            frame_aspect_ratio = frame_width / frame_height
+            self.frame_height, self.frame_width, _ = self.frame.shape
+            self.frame_aspect_ratio = self.frame_width / self.frame_height
 
             # Calculate new dimensions while maintaining aspect ratio
-            if area_width / area_height > frame_aspect_ratio:
-                new_width = area_height * frame_aspect_ratio
-                new_height = area_height
+            if area.area_width() / area.area_height() > self.frame_aspect_ratio:
+                area.new_width = area.area_height() * self.frame_aspect_ratio
+                area.new_height = area.area_height()
             else:
-                new_width = area_width
-                new_height = area_width / frame_aspect_ratio
+                area.new_width = area.area_width()
+                area.new_height = area.area_width() / self.frame_aspect_ratio
 
             # Resize frame to fit the corresponding area while maintaining aspect ratio
-            frame = cv2.resize(frame, (int(new_width), int(new_height)))
+            self.frame = cv2.resize(self.frame, (int(area.new_width), int(area.new_height)))
 
             # Convert to PIL Image
-            img_captured = Image.fromarray(frame)
-
+            img_captured = Image.fromarray(self.frame)
             # Save the captured frame in the array
-            self.img[index] = img_captured
+            area.save_image(img_captured)
+
+            self.paste_area_image(area, img_captured)
+
+            #self.img[index] = img_captured
 
             # Calculate position to center the image in the area
-            x_offset = int(area.x0 + (area_width - new_width) / 2)
-            y_offset = int(area.y0 + (area_height - new_height) / 2)
+            #x_offset = int(area.x0 + (area_width - new_width) / 2)
+            #y_offset = int(area.y0 + (area_height - new_height) / 2)
 
             # Draw the captured frame in the corresponding rectangle
-            self.img0.paste(img_captured, (x_offset, y_offset))
+            #self.img0.paste(img_captured, (x_offset, y_offset))
 
             # Update the canvas image
-            self.img_tk = ImageTk.PhotoImage(image=self.img0)
-            self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
+            #self.img_tk = ImageTk.PhotoImage(image=self.img0)
+            #self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
+
+    def paste_area_image(self, area):
+        # Calculate position to center the image in the area
+        x_offset = int(area.x0 + (area.area_width() - area.new_width) / 2)
+        y_offset = int(area.y0 + (area.area_height() - area.new_height) / 2)
+        # Draw the captured frame in the corresponding rectangle
+        self.img0.paste(area.image, (x_offset, y_offset))
 
     def exit_fullscreen(self, event=None):
         self.master.attributes('-fullscreen', False)
@@ -134,3 +145,14 @@ class ObjDetectorApp:
 
     def __del__(self):
         self.cap.release()  # Release the camera when the app is closed
+
+    def update_area_images(self):
+        for i in range(self.max_areas):
+            area = self.areas[i]
+            if area.image is None:
+                continue
+            self.paste_area_image(area)
+
+        # Update the canvas image
+        # self.img_tk = ImageTk.PhotoImage(image=self.img0)
+        # self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
