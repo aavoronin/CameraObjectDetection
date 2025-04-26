@@ -111,20 +111,7 @@ class ObjDetectorApp:
             # Save the captured frame in the array
             area.save_image(img_captured)
 
-            self.paste_area_image(area, img_captured)
-
-            #self.img[index] = img_captured
-
-            # Calculate position to center the image in the area
-            #x_offset = int(area.x0 + (area_width - new_width) / 2)
-            #y_offset = int(area.y0 + (area_height - new_height) / 2)
-
-            # Draw the captured frame in the corresponding rectangle
-            #self.img0.paste(img_captured, (x_offset, y_offset))
-
-            # Update the canvas image
-            #self.img_tk = ImageTk.PhotoImage(image=self.img0)
-            #self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
+            self.paste_area_image(area)
 
     def paste_area_image(self, area):
         # Calculate position to center the image in the area
