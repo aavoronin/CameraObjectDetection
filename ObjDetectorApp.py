@@ -1,8 +1,11 @@
 import tkinter as tk
 import cv2
-from PIL import Image, ImageTk
+import numpy as np
+from PIL import Image, ImageTk, ImageDraw
+import random
 
-from ImageArea import ImageArea
+from ImageArea import ImageArea, Connection
+from detectors import SIFTDetector
 
 
 class ObjDetectorApp:
@@ -24,6 +27,8 @@ class ObjDetectorApp:
 
         # Create a single image that covers the whole window
         self.img0 = Image.new("RGB", (self.screen_width, self.screen_height), (0, 0, 0))
+        self.draw = ImageDraw.Draw(self.img0)
+
         self.img_tk = ImageTk.PhotoImage(image=self.img0)
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
 
@@ -31,8 +36,7 @@ class ObjDetectorApp:
         self.left_area = ImageArea(0, 0, self.screen_width * 2 / 3, self.screen_height)
         self.areas = self.create_areas()
 
-        ## Initialize image holder for captured frames
-        #self.img = [None] * 4  # Array to hold 4 captured images
+        # Initialize image holder for captured frames
         self.max_areas = 4
 
         # Start camera feed
@@ -55,26 +59,32 @@ class ObjDetectorApp:
         self.update_camera_feed()
 
     def update_camera_feed(self):
-        ret, frame = self.cap.read()
+        ret, self.frame_original = self.cap.read()
         if ret:
             # Convert frame to RGB
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            self.frame = cv2.cvtColor(self.frame_original, cv2.COLOR_BGR2RGB)
             # Resize frame to fit the left area
-            frame = cv2.resize(frame, (int(self.left_area.x1 - self.left_area.x0),
+            self.frame = cv2.resize(self.frame, (int(self.left_area.x1 - self.left_area.x0),
                                      int(self.left_area.y1 - self.left_area.y0)))
             # Convert to PIL Image
-            img_feed = Image.fromarray(frame)
+            img_feed = Image.fromarray(self.frame)
 
+            #fill blask
+            width, height = self.img0.size
+            self.draw.rectangle([(0, 0), (width, height)], fill='black')
             # Draw the camera feed on the left side of img0
             self.img0.paste(img_feed, (int(self.left_area.x0), int(self.left_area.y0)))
 
             self.update_area_images()
+            self.draw_image_connections()
 
             # Update the canvas image
             self.img_tk = ImageTk.PhotoImage(image=self.img0)
             self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
 
             self.master.after(1, self.update_camera_feed)
+
+            self.left_area.save_image(self.frame, self.frame_original)
 
     def key_event(self, event):
         print(f"Key pressed: {event.keysym}")
@@ -83,10 +93,10 @@ class ObjDetectorApp:
             self.capture_current_frame(index)  # Capture frame when '1', '2', '3', or '4' is pressed
 
     def capture_current_frame(self, index):
-        ret, self.frame = self.cap.read()
+        ret, self.frame_original = self.cap.read()
         if ret:
             # Convert frame to RGB
-            self.frame = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
+            self.frame = cv2.cvtColor(self.frame_original, cv2.COLOR_BGR2RGB)
 
             # Get the dimensions of the area
             area = self.areas[index]
@@ -109,16 +119,19 @@ class ObjDetectorApp:
             # Convert to PIL Image
             img_captured = Image.fromarray(self.frame)
             # Save the captured frame in the array
-            area.save_image(img_captured)
+            area.save_image(img_captured, self.frame_original)
 
             self.paste_area_image(area)
+            
+            self.draw_image_connections()
 
-    def paste_area_image(self, area):
+    def paste_area_image(self, area: ImageArea):
         # Calculate position to center the image in the area
-        x_offset = int(area.x0 + (area.area_width() - area.new_width) / 2)
-        y_offset = int(area.y0 + (area.area_height() - area.new_height) / 2)
+        area.x_offset = int(area.x0 + (area.area_width() - area.new_width) / 2)
+        area.y_offset = int(area.y0 + (area.area_height() - area.new_height) / 2)
+
         # Draw the captured frame in the corresponding rectangle
-        self.img0.paste(area.image, (x_offset, y_offset))
+        self.img0.paste(area.image, (area.x_offset, area.y_offset))
 
     def exit_fullscreen(self, event=None):
         self.master.attributes('-fullscreen', False)
@@ -140,6 +153,58 @@ class ObjDetectorApp:
                 continue
             self.paste_area_image(area)
 
-        # Update the canvas image
-        # self.img_tk = ImageTk.PhotoImage(image=self.img0)
-        # self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
+    def draw_image_connections(self):
+        for i in range(self.max_areas):
+            area = self.areas[i]
+            if area.image is None:
+                continue
+            if self.left_area is not None and self.left_area.image is not None:
+                self.update_connections(self.left_area, area)
+
+    def update_connections(self, area1: ImageArea, area2: ImageArea) -> None:
+        # Ensure both areas have images
+        if area1.image is None or area2.image is None:
+            return
+
+        det = SIFTDetector()
+        result = det.match_features(np.array(area1.image), np.array(area2.image))
+        lines = [[(m.point1[0] + area1.x_offset, m.point1[1] + area1.y_offset),
+                  (m.point2[0] + area2.x_offset, m.point2[1] + area2.y_offset)]
+                 for m in result]
+
+        # Assuming self.img0 is your PIL Image object
+        draw = ImageDraw.Draw(self.img0)
+
+        for line in lines:
+            # Extract the start and end points of each line
+            start_point = line[0]  # (x1, y1)
+            end_point = line[1]  # (x2, y2)
+
+            # Draw the line on the image
+            draw.line([start_point, end_point],
+                      fill="red",  # You can use any color, e.g., (255, 0, 0) for red
+                      width=2)  # Line thickness
+
+
+        print(len(result))
+        #print(result)
+        #print(area1)
+        #print(area2)
+        #print(self.img0.height)
+
+        # Generate random points within area1
+        points_area1 = [
+            (random.randint(area1.x0, area1.x1), random.randint(area1.y0, area1.y1))
+            for _ in range(3)
+        ]
+
+        # Generate random points within area2
+        points_area2 = [
+            (random.randint(area2.x0, area2.x1), random.randint(area2.y0, area2.y1))
+            for _ in range(3)
+        ]
+
+        self.connections = []
+        # Create connections between points from area1 and area2
+        for i in range(len(points_area1)):
+            self.connections.append(Connection(points_area1[i], points_area2[i]))

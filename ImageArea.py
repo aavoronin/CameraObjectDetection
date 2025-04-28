@@ -12,6 +12,10 @@ class CircleFeature:
     radius: int  # Circle radius (independent random value)
     color: Tuple[int, int, int]  # RGB color tuple
 
+class Connection:
+    def __init__(self, point1: Tuple[int, int], point2: Tuple[int, int]) -> None:
+        self.point1 = point1
+        self.point2 = point2
 
 class ImageArea:
     def __init__(self, x0: int, y0: int, x1: int, y1: int) -> None:
@@ -19,7 +23,13 @@ class ImageArea:
         self.y0: int = y0  # Top boundary
         self.x1: int = x1  # Right boundary
         self.y1: int = y1  # Bottom boundary
+        self.x_offset = 0
+        self.y_offset = 0
+
+        self.new_height: int = None
+        self.new_width: int = None
         self.image: Optional[Image.Image] = None
+        self.image_original: Optional[Image.Image] = None
         self.features: List[CircleFeature] = []
 
     def area_width(self):
@@ -28,9 +38,14 @@ class ImageArea:
     def area_height(self):
         return int(self.y1 - self.y0)
 
-    def save_image(self, image: Image.Image) -> None:
+    def save_image(self, image: Image.Image, image_original: Image.Image) -> None:
         """Stores an image in this area"""
+        if self.image  is not None:
+            del self.image
         self.image = image
+        if self.image_original  is not None:
+            del self.image_original
+        self.image_original = image_original
 
     def add_random_circles(self, n_circles: int) -> None:
         """Adds n random circles with independent position/radius"""
